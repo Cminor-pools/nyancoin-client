@@ -86,10 +86,10 @@ public:
         consensus.BIP65Height = 99324613; // 
         consensus.BIP66Height = 99324613; // 80d1364201e5df97e696c03bdd24dc885e8617b9de51e453c10a4f629b1e797a - this is the last block that could be v2, 1900 blocks past the last v2 block
         consensus.powLimit = uint256S("0x00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 20;
-		consensus.nPowTargetTimespan = 3 * 60 * 60; // pre-digishield: 1 hours
+	consensus.nPowTargetTimespan = 3 * 60 * 60; // pre-digishield: 1 hours
         consensus.nPowTargetSpacing = 60; // 60 seconds
         consensus.fDigishieldDifficultyCalculation = false;
-		consensus.nCoinbaseMaturity = 15;
+	consensus.nCoinbaseMaturity = 15;
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowAllowDigishieldMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
@@ -117,7 +117,7 @@ public:
         consensus.defaultAssumeValid = uint256S("0xb477d9bc0721a1b96547495404583d68123f471fdd1d4058a9adff2fa7452298");  // Block 11461900
 
         // AuxPoW parameters
-		consensus.nAuxpowChainIds = {0x0151, 0x4C4};
+	consensus.nAuxpowChainIds = {0x0151, 0x4C4};
         consensus.nAuxpowChainId = 0x0151; //id 773
         consensus.fStrictChainId = true;
         consensus.fAllowLegacyBlocks = false;
@@ -146,7 +146,7 @@ public:
 
         // Assemble the binary search tree of consensus parameters
         pConsensusRoot = &digishieldConsensus;
-		pConsensusRoot->InsertConsensus(&consensus);
+	pConsensusRoot->InsertConsensus(&consensus);
         pConsensusRoot->InsertConsensus(&auxpowConsensus);
         pConsensusRoot->InsertConsensus(&aux2Consensus);
 
