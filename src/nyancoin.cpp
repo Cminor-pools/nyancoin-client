@@ -7,77 +7,84 @@
 
 #include "policy/policy.h"
 #include "arith_uint256.h"
+#include "consensus/params.h"
 #include "nyancoin.h"
 #include "txmempool.h"
 #include "util.h"
 #include "validation.h"
 
+int static generateMTRandom(unsigned int s, int range)
+{
+    boost::mt19937 gen(s);
+    boost::uniform_int<> dist(1, range);
+    return dist(gen);
+}
 
+// Nyancoin: Normally minimum difficulty blocks can only occur in between
+// retarget blocks. However, once we introduce Digishield every block is
+// a retarget, so we need to handle minimum difficulty on all blocks.
+bool AllowDigishieldMinDifficultyForBlock(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
+{
+    // check if the chain allows minimum difficulty blocks
+    if (!params.fPowAllowMinDifficultyBlocks)
+        return false;
 
+    // check if the chain allows minimum difficulty blocks on recalc blocks
+    if (pindexLast->nHeight < 157500)
+    // if (!params.fPowAllowDigishieldMinDifficultyBlocks)
+        return false;
 
+    // Allow for a minimum block time if the elapsed time > 2*nTargetSpacing
+    return (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing*2);
+}
 
-unsigned int CalculateNyancoinNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, uint64_t TargetBlocksSpacingSeconds, uint64_t PastBlocksMin, uint64_t PastBlocksMax) {
-    /* current difficulty formula, megacoin - kimoto gravity well */
-    const CBlockIndex *BlockLastSolved = pindexLast;
-    const CBlockIndex *BlockReading = pindexLast;
-    const CBlockHeader *BlockCreating = pblock;
-                                            BlockCreating = BlockCreating;
-    
-const arith_uint256 bnPowLimit = bnPowLimit;
-    uint64_t PastBlocksMass = 0;
-    int64_t PastRateActualSeconds = 0;
+unsigned int CalculateNyancoinNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params)
+{
+    int nHeight = pindexLast->nHeight + 1;
+    const int64_t retargetTimespan = params.nPowTargetTimespan;
+    const int64_t nActualTimespan = pindexLast->GetBlockTime() - nFirstBlockTime;
+    int64_t nModulatedTimespan = nActualTimespan;
+    int64_t nMaxTimespan;
+    int64_t nMinTimespan;
 
+    if (params.fDigishieldDifficultyCalculation) //DigiShield implementation - thanks to RealSolid & WDC for this code
+    {
+        // amplitude filter - thanks to daft27 for this code
+        nModulatedTimespan = retargetTimespan + (nModulatedTimespan - retargetTimespan) / 8;
 
-    int64_t PastRateTargetSeconds = 0;
-    double PastRateAdjustmentRatio = double(1);
-    arith_uint256 PastDifficultyAverage;
-    arith_uint256 PastDifficultyAveragePrev;
-    double EventHorizonDeviation;
-    double EventHorizonDeviationFast;
-    double EventHorizonDeviationSlow;
+        nMinTimespan = retargetTimespan - (retargetTimespan / 4);
+        nMaxTimespan = retargetTimespan + (retargetTimespan / 2);
+    } else if (nHeight > 10000) {
+        nMinTimespan = retargetTimespan / 4;
+        nMaxTimespan = retargetTimespan * 4;
+    } else if (nHeight > 5000) {
+        nMinTimespan = retargetTimespan / 8;
+        nMaxTimespan = retargetTimespan * 4;
+    } else {
+        nMinTimespan = retargetTimespan / 16;
+        nMaxTimespan = retargetTimespan * 4;
+    }
 
-    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || (uint64_t)BlockLastSolved->nHeight < PastBlocksMin) { return bnPowLimit.GetCompact(); }
+    // Limit adjustment step
+    if (nModulatedTimespan < nMinTimespan)
+        nModulatedTimespan = nMinTimespan;
+    else if (nModulatedTimespan > nMaxTimespan)
+        nModulatedTimespan = nMaxTimespan;
 
-        for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
-            if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
-            PastBlocksMass++;
+    // Retarget
+    const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
+    arith_uint256 bnNew;
+    arith_uint256 bnOld;
+    bnNew.SetCompact(pindexLast->nBits);
+    bnOld = bnNew;
+    bnNew *= nModulatedTimespan;
+    bnNew /= retargetTimespan;
 
-            if (i == 1) { 
-                PastDifficultyAverage.SetCompact(BlockReading->nBits);
-            } else {
-                PastDifficultyAverage = ((arith_uint256().SetCompact(BlockReading->nBits) - PastDifficultyAveragePrev) / i) + PastDifficultyAveragePrev;
-            }
-            PastDifficultyAveragePrev = PastDifficultyAverage;
-
-            PastRateActualSeconds = BlockLastSolved->GetBlockTime() - BlockReading->GetBlockTime();
-            PastRateTargetSeconds = TargetBlocksSpacingSeconds * PastBlocksMass;
-            PastRateAdjustmentRatio = double(1);
-            if (PastRateActualSeconds < 0) { PastRateActualSeconds = 0; }
-            if (PastRateActualSeconds != 0 && PastRateTargetSeconds != 0) {
-            PastRateAdjustmentRatio = double(PastRateTargetSeconds) / double(PastRateActualSeconds);
-            }
-            EventHorizonDeviation = 1 + (0.7084 * pow((double(PastBlocksMass)/double(28.2)), -1.228));
-            EventHorizonDeviationFast = EventHorizonDeviation;
-            EventHorizonDeviationSlow = 1 / EventHorizonDeviation;
-
-            if (PastBlocksMass >= PastBlocksMin) {
-                if ((PastRateAdjustmentRatio <= EventHorizonDeviationSlow) || (PastRateAdjustmentRatio >= EventHorizonDeviationFast)) { assert(BlockReading); break; }
-            }
-            if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
-            BlockReading = BlockReading->pprev;
-        }
-
-        arith_uint256 bnNew(PastDifficultyAverage);
-        if (PastRateActualSeconds != 0 && PastRateTargetSeconds != 0) {
-                bnNew *= PastRateActualSeconds;
-                bnNew /= PastRateTargetSeconds;
-        }
-    if (bnNew > bnPowLimit) { bnNew = bnPowLimit; }
-
+    if (bnNew > bnPowLimit)
+        bnNew = bnPowLimit;
 
     return bnNew.GetCompact();
 }
-
 
 bool CheckAuxPowProofOfWork(const CBlockHeader& block, const Consensus::Params& params)
 {
@@ -90,6 +97,12 @@ bool CheckAuxPowProofOfWork(const CBlockHeader& block, const Consensus::Params& 
                      " (got %d, expected %d, full nVersion %d)",
                      __func__, block.GetChainId(),
                      params.nAuxpowChainId, block.nVersion);
+
+//    if (nHeight >= params.nAuxpowChainIdRetargetHeight && !block.IsLegacy() && params.fStrictChainId && block.GetChainId() != params.nAuxpowChainIdNew)
+//        return error("%s : block does not have our chain ID"
+//                     " (got %d, expected %d, full nVersion %d)",
+//                     __func__, block.GetChainId(),
+//                     params.nAuxpowChainIdNew, block.nVersion);
 
     /* If there is no auxpow, just check the block hash.  */
     if (!block.auxpow) {
@@ -119,38 +132,25 @@ bool CheckAuxPowProofOfWork(const CBlockHeader& block, const Consensus::Params& 
 CAmount GetNyancoinBlockSubsidy(int nHeight, const Consensus::Params& consensusParams, uint256 prevHash)
 {
     int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
-    if(nHeight <= consensusParams.SubnHeight){
-    // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64)
-      {
-         return 0;
-      }
-    
-    CAmount nSubsidy = 337 * COIN; 
-    
-    if(nHeight < 50){
-    nSubsidy = 67400 * COIN; // 1% premine
-   	 }
 
-    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
-    nSubsidy >>= halvings;
-    return nSubsidy;
-    
-     }else if(nHeight > consensusParams.SubnHeight && nHeight <= (consensusParams.SubnHeight + consensusParams.SubBlks)){
-     CAmount nSubsidy = consensusParams.SubV * COIN;
-    return nSubsidy;
-     }else {
-     // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64)
-      {
-         return 0;
-      }
-    
-    CAmount nSubsidy = 337* COIN; 
-    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
-    nSubsidy >>= halvings;
-    return nSubsidy;
-     }
+    if (!consensusParams.fSimplifiedRewards)
+    {
+        // Old-style rewards derived from the previous block hash
+        const std::string cseed_str = prevHash.ToString().substr(7, 7);
+        const char* cseed = cseed_str.c_str();
+        char* endp = NULL;
+        long seed = strtol(cseed, &endp, 16);
+        CAmount maxReward = (1000000 >> halvings) - 1;
+        int rand = generateMTRandom(seed, maxReward);
+
+        return (1 + rand) * COIN;
+    } else if (nHeight < (6 * consensusParams.nSubsidyHalvingInterval)) {
+        // New-style constant rewards for each halving interval
+        return (500000 * COIN) >> halvings;
+    } else {
+        // Constant inflation
+        return 10000 * COIN;
+    }
 }
 
 CAmount GetNyancoinMinRelayFee(const CTransaction& tx, unsigned int nBytes, bool fAllowFree)
