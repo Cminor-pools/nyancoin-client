@@ -9,6 +9,7 @@
 #include "uint256.h"
 #include <map>
 #include <string>
+#include <vector>
 
 namespace Consensus {
 
@@ -50,6 +51,8 @@ struct Params {
     int BIP65Height;
     /** Block height at which BIP66 becomes active */
     int BIP66Height;
+    // Forced new min proto at this height
+    int newMinProtoHeight;
     /**
      * Minimum blocks including miner confirmation of the total of 2016 blocks in a retargeting period,
      * (nPowTargetTimespan / nPowTargetSpacing) which is also used for BIP9 deployments.
@@ -76,17 +79,18 @@ struct Params {
     uint256 defaultAssumeValid;
 
      /** Initial block POW diffmode 1 */
-    int DiffMode;
+///    int DiffMode;
 	/** Block height at which DiffModeV2 becomes active */
-    int DiffModeV2;
+///    int DiffModeV2;
     
     //fork height for sub
-    int SubnHeight; 
-    int SubV;
-    int SubBlks;
+///    int SubnHeight; 
+///    int SubV;
+///    int SubBlks;
 
     /** Auxpow parameters */
     int32_t nAuxpowChainId;
+    std::vector<int32_t> nAuxpowChainIds; // Includes all possible future chainIds.
     bool fStrictChainId;
     bool fAllowLegacyBlocks;
 
@@ -95,6 +99,7 @@ struct Params {
     struct Params *pLeft = nullptr;      // Left hand branch
     struct Params *pRight = nullptr;     // Right hand branch
     const Consensus::Params *GetConsensus(uint32_t nTargetHeight) const;
+    void InsertConsensus(Consensus::Params* item);
 };
 } // namespace Consensus
 
