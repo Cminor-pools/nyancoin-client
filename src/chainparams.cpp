@@ -120,7 +120,7 @@ public:
 	consensus.nAuxpowChainIds = {0x0151, 0x4C4};
         consensus.nAuxpowChainId = 0x0151; //id 773
         consensus.fStrictChainId = true;
-        consensus.fAllowLegacyBlocks = false;
+        consensus.fAllowLegacyBlocks = true;
         consensus.nHeightEffective = 4999997;
 
          // Blocks < xxxx are Digishield without AuxPoW
@@ -135,14 +135,14 @@ public:
         // Blocks xxxx+ are AuxPoW
         auxpowConsensus = digishieldConsensus;
         auxpowConsensus.nHeightEffective = 4999999;
-        auxpowConsensus.fAllowLegacyBlocks = false;
+        auxpowConsensus.fAllowLegacyBlocks = true;
 
 	/// Aux2
         aux2Consensus = auxpowConsensus;
         aux2Consensus.nHeightEffective = 5000000;
         aux2Consensus.nAuxpowChainId = 0x4C4; //id 1220
         aux2Consensus.fStrictChainId = true;
-        aux2Consensus.fAllowLegacyBlocks = false;
+        aux2Consensus.fAllowLegacyBlocks = true;
 
         // Assemble the binary search tree of consensus parameters
         pConsensusRoot = &digishieldConsensus;
@@ -212,7 +212,7 @@ public:
 	};
 
         chainTxData = ChainTxData{
-            1591102676, // * UNIX timestamp of last checkpoint block
+            1388708431, // * UNIX timestamp of last checkpoint block
                      0, // * total number of transactions between genesis and last checkpoint
                         // (the tx=... number in the SetBestChain debug.log lines)
                    0.5  // * estimated number of transactions per second after checkpoint
